@@ -50,6 +50,7 @@ class PrintHostQueueDialog;
 class Plater;
 class MainFrame;
 class ParamsDialog;
+class WebViewPanel;
 
 enum QuickSlice
 {
@@ -213,9 +214,10 @@ public:
         tpMonitor       = 3,
         tpMultiDevice   = 4,
         tpProject       = 5,
-        tpCalibration   = 6,
-        tpAuxiliary     = 7,
-        toDebugTool     = 8,
+        tpCalculator    = 6,
+        tpCalibration   = 7,
+        tpAuxiliary     = 8,
+        toDebugTool     = 9,
     };
 
     //BBS: add slice&&print status update logic
@@ -345,6 +347,7 @@ public:
     bool        is_printer_view() const;
     void        refresh_plugin_tips();
     void RunScript(wxString js);
+    void        send_gcode_to_calculator(const std::string& gcode_path);
 
     //SoftFever
     void show_device(bool bBBLPrinter);
@@ -368,6 +371,7 @@ public:
     //AuxiliaryPanel*       m_auxiliary{ nullptr };
     MultiMachinePage*     m_multi_machine{ nullptr };
     ProjectPanel*         m_project{ nullptr };
+    WebViewPanel*         m_calculator{ nullptr };
 
     CalibrationPanel*     m_calibration{ nullptr };
     WebViewPanel*         m_webview { nullptr };

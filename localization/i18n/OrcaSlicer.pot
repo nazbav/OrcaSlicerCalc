@@ -16144,3 +16144,7 @@ msgstr ""
 #: resources/data/hints.ini: [hint:Avoid warping]
 msgid "Avoid warping\nDid you know that when printing materials that are prone to warping such as ABS, appropriately increasing the heatbed temperature can reduce the probability of warping?"
 msgstr ""
+
+#: src/slic3r/GUI/MainFrame.cpp
+msgid "Price Calculator"
+msgstr ""
