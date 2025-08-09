@@ -213,9 +213,10 @@ public:
         tpMonitor       = 3,
         tpMultiDevice   = 4,
         tpProject       = 5,
-        tpCalibration   = 6,
-        tpAuxiliary     = 7,
-        toDebugTool     = 8,
+        tpCalculator    = 6,
+        tpCalibration   = 7,
+        tpAuxiliary     = 8,
+        toDebugTool     = 9,
     };
 
     //BBS: add slice&&print status update logic
@@ -368,6 +369,7 @@ public:
     //AuxiliaryPanel*       m_auxiliary{ nullptr };
     MultiMachinePage*     m_multi_machine{ nullptr };
     ProjectPanel*         m_project{ nullptr };
+    WebViewPanel*         m_calculator{ nullptr };
 
     CalibrationPanel*     m_calibration{ nullptr };
     WebViewPanel*         m_webview { nullptr };

@@ -1115,6 +1115,11 @@ void MainFrame::init_tabpanel() {
     m_project->SetBackgroundColour(*wxWHITE);
     m_tabpanel->AddPage(m_project, _L("Project"), std::string("tab_auxiliary_active"), std::string("tab_auxiliary_active"), false);
 
+    m_calculator = new WebViewPanel(m_tabpanel);
+    wxString calc_url = wxString::FromUTF8("https://raw.githubusercontent.com/nazbav/3d-price/master/test.html");
+    m_calculator->load_url(calc_url);
+    m_tabpanel->AddPage(m_calculator, _L("Price Calculator"), std::string("tab_auxiliary_active"), std::string("tab_auxiliary_active"), false);
+
     m_calibration = new CalibrationPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     m_calibration->SetBackgroundColour(*wxWHITE);
     m_tabpanel->AddPage(m_calibration, _L("Calibration"), std::string("tab_calibration_active"), std::string("tab_calibration_active"), false);

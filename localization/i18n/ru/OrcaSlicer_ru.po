@@ -20013,3 +20013,7 @@ msgstr ""
 
 #~ msgid "Right click to reset value to system default."
 #~ msgstr "Правая кнопка мыши - сброс значения до системного по умолчанию."
+
+#: src/slic3r/GUI/MainFrame.cpp
+msgid "Price Calculator"
+msgstr "Калькулятор"
