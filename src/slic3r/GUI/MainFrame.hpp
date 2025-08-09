@@ -50,6 +50,7 @@ class PrintHostQueueDialog;
 class Plater;
 class MainFrame;
 class ParamsDialog;
+class WebViewPanel;
 
 enum QuickSlice
 {
@@ -346,6 +347,7 @@ public:
     bool        is_printer_view() const;
     void        refresh_plugin_tips();
     void RunScript(wxString js);
+    void        send_gcode_to_calculator(const std::string& gcode_path);
 
     //SoftFever
     void show_device(bool bBBLPrinter);

@@ -49,6 +49,11 @@
 
 #include <fstream>
 #include <string_view>
+#include <vector>
+#include <sstream>
+#include <random>
+#include <iomanip>
+#include <cctype>
 
 #include "GUI_App.hpp"
 #include "UnsavedChangesDialog.hpp"
@@ -3857,6 +3862,198 @@ void MainFrame::RunScript(wxString js)
 {
     if (m_webview != nullptr)
         m_webview->RunScript(js);
+}
+
+static std::string generate_uuid()
+{
+    static const char alphanum[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, sizeof(alphanum) - 2);
+    std::string s;
+    for (int i = 0; i < 16; ++i)
+        s += alphanum[dis(gen)];
+    return s;
+}
+
+static std::string trim(const std::string &s)
+{
+    size_t start = 0;
+    while (start < s.size() && std::isspace(static_cast<unsigned char>(s[start]))) ++start;
+    size_t end = s.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(s[end - 1]))) --end;
+    return s.substr(start, end - start);
+}
+
+static std::string url_encode(const std::string &value)
+{
+    std::ostringstream escaped;
+    escaped.fill('0');
+    escaped << std::hex;
+    for (unsigned char c : value) {
+        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            escaped << c;
+        } else {
+            escaped << '%' << std::uppercase << std::setw(2) << int(c) << std::nouppercase;
+        }
+    }
+    return escaped.str();
+}
+
+void MainFrame::send_gcode_to_calculator(const std::string& gcode_path)
+{
+    if (m_calculator == nullptr)
+        return;
+
+    std::ifstream in(gcode_path);
+    if (!in.is_open())
+        return;
+
+    std::vector<std::string> lines;
+    std::string l;
+    while (std::getline(in, l))
+        lines.push_back(l);
+    in.close();
+
+    std::string model_code;
+    if (!lines.empty() && lines.front().rfind("; MODEL_CODE: ", 0) == 0) {
+        model_code = trim(lines.front().substr(13));
+    } else {
+        model_code = generate_uuid();
+        lines.insert(lines.begin(), "; MODEL_CODE: " + model_code);
+        std::ofstream out(gcode_path, std::ios::trunc);
+        for (const auto &ln : lines)
+            out << ln << '\n';
+    }
+
+    std::string printer = "Unknown";
+    std::string print_time;
+    std::string filament_weight;
+    std::string filament_type;
+    std::string filament_settings;
+    std::string model_name = model_code;
+    bool after_exec_start = false;
+    size_t lines_after_exec_start = 0;
+    bool in_config = false;
+    bool in_thumbnail = false;
+    std::string thumbnail_data;
+
+    for (const std::string &raw_line : lines) {
+        std::string line = trim(raw_line);
+
+        if (line.rfind("; THUMBNAIL_BLOCK_START", 0) == 0)
+            continue;
+        if (line.rfind("; thumbnail begin", 0) == 0) {
+            in_thumbnail = true;
+            continue;
+        }
+        if (line.rfind("; thumbnail end", 0) == 0) {
+            in_thumbnail = false;
+            continue;
+        }
+        if (in_thumbnail) {
+            if (!line.empty() && line[0] == ';')
+                thumbnail_data += trim(line.substr(1));
+            else
+                thumbnail_data += line;
+            continue;
+        }
+
+        if (line == "; EXECUTABLE_BLOCK_START") {
+            after_exec_start = true;
+            lines_after_exec_start = 0;
+            continue;
+        }
+        if (after_exec_start && lines_after_exec_start < 50) {
+            ++lines_after_exec_start;
+            size_t pos = line.find("plate_name=");
+            if (pos != std::string::npos) {
+                std::string name = trim(line.substr(pos + 11));
+                size_t sc = name.find(';');
+                if (sc != std::string::npos)
+                    name = trim(name.substr(0, sc));
+                model_name = name;
+            }
+        }
+        if (line == "; EXECUTABLE_BLOCK_END") {
+            after_exec_start = false;
+            continue;
+        }
+
+        if (line == "; CONFIG_BLOCK_START") {
+            in_config = true;
+            continue;
+        }
+        if (line == "; CONFIG_BLOCK_END") {
+            in_config = false;
+            continue;
+        }
+
+        if (line.rfind("; estimated printing time", 0) == 0) {
+            size_t eq = line.find('=');
+            if (eq != std::string::npos)
+                print_time = trim(line.substr(eq + 1));
+        } else if (line.rfind("; total filament used [g]", 0) == 0) {
+            size_t eq = line.find('=');
+            if (eq != std::string::npos)
+                filament_weight = trim(line.substr(eq + 1));
+        }
+
+        if (in_config) {
+            if (line.find("printer_settings_id") != std::string::npos && line.find('=') != std::string::npos) {
+                printer = trim(line.substr(line.find('=') + 1));
+                if (!printer.empty() && printer.front() == '"')
+                    printer.erase(0, 1);
+                if (!printer.empty() && printer.back() == '"')
+                    printer.pop_back();
+            } else if (line.rfind("; filament_type", 0) == 0 && line.find('=') != std::string::npos) {
+                filament_type = trim(line.substr(line.find('=') + 1));
+                if (!filament_type.empty() && filament_type.front() == '"')
+                    filament_type.erase(0, 1);
+                if (!filament_type.empty() && filament_type.back() == '"')
+                    filament_type.pop_back();
+            } else if (line.find("filament_settings_id") != std::string::npos && line.find('=') != std::string::npos) {
+                filament_settings = trim(line.substr(line.find('=') + 1));
+                if (!filament_settings.empty() && filament_settings.front() == '"')
+                    filament_settings.erase(0, 1);
+                if (!filament_settings.empty() && filament_settings.back() == '"')
+                    filament_settings.pop_back();
+            }
+        }
+    }
+
+    auto trim_underscores = [](const std::string &s) {
+        size_t start = 0;
+        while (start < s.size() && s[start] == '_') ++start;
+        size_t end = s.size();
+        while (end > start && s[end - 1] == '_') --end;
+        return s.substr(start, end - start);
+    };
+    std::string final_filament = trim_underscores(filament_settings);
+
+    std::vector<std::pair<std::string, std::string>> params = {
+        {"printer", printer},
+        {"model_status[]", "new"},
+        {"model_name[]", model_name},
+        {"model_id[]", model_code},
+        {"model_time[]", print_time},
+        {"model_weight[]", filament_weight},
+        {"model_filament[]", final_filament}
+    };
+    if (!thumbnail_data.empty())
+        params.emplace_back("model_thumbnail[]", thumbnail_data);
+
+    std::string url = "https://nazbav.github.io/3d-price/test.html";
+    url += '?';
+    bool first = true;
+    for (const auto &kv : params) {
+        if (!first) url += '&';
+        first = false;
+        url += url_encode(kv.first) + '=' + url_encode(kv.second);
+    }
+
+    wxString wxurl = wxString::FromUTF8(url.c_str());
+    m_calculator->load_url(wxurl);
 }
 
 void MainFrame::technology_changed()
